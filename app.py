@@ -1,3 +1,11 @@
+# Функционал для запуска:
+from aiogram import executor
+from logging import basicConfig, INFO
+
+from loader import db, bot
+
+
+# Функционал для работы:
 from aiogram import types
 from aiogram.types import ReplyKeyboardMarkup
 from aiogram.types import ReplyKeyboardRemove
@@ -5,6 +13,18 @@ from aiogram.types import ReplyKeyboardRemove
 from data.config import ADMINS
 from loader import dp
 
+
+# Проверка работы
+def main():
+    executor.start_polling(dp, on_startup=on_startup, skip_updates=False)
+
+
+async def on_startup(dp):
+    basicConfig(level=INFO)
+    db.create_tables()
+
+
+# Сама программа:
 user_message = 'Пользователь'
 admin_message = 'Админ'
 
@@ -52,3 +72,6 @@ async def user_mode(message: types.Message):
 
     await message.answer('Включен пользовательский режим.',
                          reply_markup=ReplyKeyboardRemove())
+    
+if __name__ == '__main__':
+    main()
