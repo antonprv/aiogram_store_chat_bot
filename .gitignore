@@ -1,1 +1,6 @@
 venv/*
+__pycache__/*
+data/__pycache__/*
+utils/db/__pychache__/*
+handlers/__pycache__/*
+filters/__pychache__/*
