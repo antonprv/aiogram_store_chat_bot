@@ -1,17 +1,12 @@
-# Функционал для запуска:
-from aiogram import executor
-from logging import basicConfig, INFO
-
-from loader import db, bot
-
-
-# Функционал для работы:
 from aiogram import types
+from aiogram import executor
 from aiogram.types import ReplyKeyboardMarkup
 from aiogram.types import ReplyKeyboardRemove
 
 from data.config import ADMINS
-from loader import dp
+from loader import db, dp, bot
+from logging import basicConfig, INFO
+import handlers
 
 
 # Проверка работы
@@ -73,5 +68,6 @@ async def user_mode(message: types.Message):
     await message.answer('Включен пользовательский режим.',
                          reply_markup=ReplyKeyboardRemove())
     
+
 if __name__ == '__main__':
     main()

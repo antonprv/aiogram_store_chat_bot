@@ -4,3 +4,5 @@ data/__pycache__/*
 utils/db/__pychache__/*
 handlers/__pycache__/*
 filters/__pychache__/*
+handlers/user/__pycache__/*
+handlers/admin/__pycache__/*
