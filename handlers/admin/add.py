@@ -1,16 +1,22 @@
-from loader import dp, db
+from hashlib import md5
+from typing import Tuple, List
+
+
+from aiogram.dispatcher import FSMContext
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
+from aiogram.types.chat import ChatActions
+from aiogram.utils.callback_data import CallbackData
+
+from loader import dp, db, bot
 from filters import IsAdmin
 from handlers.user.menu import settings
 from states import CategoryState
 
-from hashlib import md5
-
-from aiogram.dispatcher import FSMContext
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.types import CallbackQuery
-from aiogram.utils.callback_data import CallbackData
 
 # Определяю тип данных, которые получу при нажатии на кнопку.
+# Первое значение - уникальный идентификатор кнопки, должно быть всегда.
+# Следом уже нужные мне данные.
 category_cb = CallbackData('category', 'id', 'action')
 
 @dp.message_handler(IsAdmin(), text=settings)
@@ -63,15 +69,54 @@ async def set_category_title_handler(message: Message, state: FSMContext):
 
 
 @dp.callback_query_handler(IsAdmin(), category_cb.filter(action='view'))
-async def category_callback_handler(query: CallbackQuery, callback_data:
-    dict, state: FSMContext):
+async def category_callback_handler(query: CallbackQuery, callback_data: dict,
+                                    state: FSMContext):
+    
     category_idx = callback_data['id']
     
+    # Временная переменная product добавлена для... Читаемости??
     products = db.fetchall('''SELECT * FROM products product
 WHERE product.tag = (SELECT title FROM categories WHERE idx=?)''',
                            (category_idx,))
     
     await query.message.delete()
     await query.answer('Все добавленные товары в эту категорию')
-    await state.update_data(category_index=category_idx)
-    await show_products(query.message, products, category_idx)
+    # Не очень понимаю, зачем в примере нужны эти 2 строки
+    # await state.update_data(category_index=category_idx)
+    # await show_products(query.message, products, category_idx)
+    await show_products(query.message, products)
+
+
+# Функционал при проваливании в кнопку с категорией.
+
+# Все нужные для этого переменные:
+# Колбэк при нажатии на кнопку.
+product_cb = CallbackData('product', 'id', 'action')
+
+cancel_message = '🚫 Отменить'
+add_product = '➕ Добавить товар'
+delete_category = '🗑️ Удалить категорию'
+
+
+# Пока удалил category_idx
+# async def show_products(message: Message, products: List[Tuple], category_idx):
+async def show_products(message: Message, products: List[Tuple]):
+    await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
+    
+    for idx, title, body, image, price, in products:
+        text = f'<b>{title}</b>\n\n{body}\n\nЦена: {price} рублей.'
+        
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton(\
+            '🗑️ Удалить',
+            callback_data=product_cb.new(id=idx, action='delete')))
+        await message.answer_photo(photo=image,
+                             caption=text,
+                             reply_makrup=markup)
+        
+    markup = ReplyKeyboardMarkup()
+    markup.add(add_product)
+    markup.add(delete_category)
+    
+    await message.answer('Хотите что-нибудь добавить или удалить?',
+                   reply_markup=markup)
