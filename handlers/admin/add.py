@@ -23,7 +23,9 @@ async def process_settings(message: Message):
     # из каждой категории извлекаю идентификатор и название
     # и раскидываю категории по кнопкам.
     for idx, title in db.fetchall('SELECT * FROM categories'):
-        # Через action 'view' свяжемся с другим обработчиком.
+        # Через action 'view' свяжемся с другим обработчиком,
+        # Который по ID категории перейдет к таблице и скажет,
+        # что находится внутри категории.
         markup.add(InlineKeyboardButton(
             title, callback_data=category_cb.new(id=idx, action='view')))
     
