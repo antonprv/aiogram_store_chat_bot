@@ -67,23 +67,22 @@ async def set_category_title_handler(message: Message, state: FSMContext):
     await state.finish()
     await process_settings(message)
 
-
+# Перехватываю коллбэк с действием view:
 @dp.callback_query_handler(IsAdmin(), category_cb.filter(action='view'))
 async def category_callback_handler(query: CallbackQuery, callback_data: dict,
                                     state: FSMContext):
     
     category_idx = callback_data['id']
-    
-    # Временная переменная product добавлена для... Читаемости??
+
     products = db.fetchall('''SELECT * FROM products product
-WHERE product.tag = (SELECT title FROM categories WHERE idx=?)''',
+                           WHERE product.tag = 
+                           (SELECT title FROM categories WHERE idx=?)''',
                            (category_idx,))
     
     await query.message.delete()
-    await query.answer('Все добавленные товары в эту категорию')
-    # Не очень понимаю, зачем в примере нужны эти 2 строки
-    # await state.update_data(category_index=category_idx)
-    # await show_products(query.message, products, category_idx)
+    await query.answer('Все товары этой категории:')
+    # В текущем статусе диалога теперь будет храниться индекс категории.
+    await state.update_data(category_index=category_idx)
     await show_products(query.message, products)
 
 
@@ -98,25 +97,34 @@ add_product = '➕ Добавить товар'
 delete_category = '🗑️ Удалить категорию'
 
 
-# Пока удалил category_idx
-# async def show_products(message: Message, products: List[Tuple], category_idx):
+# Эта функция запускается из обработчика экшена 'view'.
 async def show_products(message: Message, products: List[Tuple]):
+    # Добавил по приколу. Будет показывать, будто бот печатает.
     await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
     
-    for idx, title, body, image, price, in products:
+    # Для всех элементов каждого из кортежей из списка из fetchall
+    # взять все элементы и сформировать с ними текст.
+    for idx, title, body, image, price, tag in products:
         text = f'<b>{title}</b>\n\n{body}\n\nЦена: {price} рублей.'
         
+        # Для для каждого товара создаю кнопку "удалить" со своим колбэком.
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton(\
+        markup.add(InlineKeyboardButton(
             '🗑️ Удалить',
             callback_data=product_cb.new(id=idx, action='delete')))
+        # Для каждого кортежа из списка вывожу сообщение с фото, текстом
+        # и собственной кнопкой "удалить"
         await message.answer_photo(photo=image,
                              caption=text,
                              reply_makrup=markup)
-        
+    
+    # Создаю большие кнопки с вариантами (сверху)
     markup = ReplyKeyboardMarkup()
     markup.add(add_product)
     markup.add(delete_category)
     
+    # Вывожу кнопки.
     await message.answer('Хотите что-нибудь добавить или удалить?',
                    reply_markup=markup)
+
+
