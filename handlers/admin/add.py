@@ -11,7 +11,7 @@ from aiogram.types import CallbackQuery
 from aiogram.utils.callback_data import CallbackData
 
 # Определяю тип данных, которые получу при нажатии на кнопку.
-category_cb = CallbackData('category_title', 'id', 'action')
+category_cb = CallbackData('category', 'id', 'action')
 
 @dp.message_handler(IsAdmin(), text=settings)
 async def process_settings(message: Message):
@@ -60,3 +60,18 @@ async def set_category_title_handler(message: Message, state: FSMContext):
     # Выхожу из состояния title.
     await state.finish()
     await process_settings(message)
+
+
+@dp.callback_query_handler(IsAdmin(), category_cb.filter(action='view'))
+async def category_callback_handler(query: CallbackQuery, callback_data:
+    dict, state: FSMContext):
+    category_idx = callback_data['id']
+    
+    products = db.fetchall('''SELECT * FROM products product
+WHERE product.tag = (SELECT title FROM categories WHERE idx=?)''',
+                           (category_idx,))
+    
+    await query.message.delete()
+    await query.answer('Все добавленные товары в эту категорию')
+    await state.update_data(category_index=category_idx)
+    await show_products(query.message, products, category_idx)
