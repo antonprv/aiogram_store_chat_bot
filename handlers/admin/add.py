@@ -5,6 +5,7 @@ from typing import Tuple, List
 from aiogram.dispatcher import FSMContext
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardRemove
 from aiogram.types.chat import ChatActions
 from aiogram.utils.callback_data import CallbackData
 
@@ -128,3 +129,17 @@ async def show_products(message: Message, products: List[Tuple]):
                    reply_markup=markup)
 
 
+# Логика удаления категории:
+@dp.message_handler(IsAdmin(), text=delete_category)
+async def delete_category_handler(message: Message, state: FSMContext):
+    async with state.proxy() as data:
+        if 'category_index' in data.keys():
+            idx = data['category_index']
+            
+            db.query('DELETE FROM products WHERE tag IN '
+                     '(SELECT title FROM categories WHERE idx=?)',
+                     (idx,))
+            db.query('DELETE FROM categories WHERE idx=?', (idx,))
+            
+            await message.answer('Готово!', reply_markup=ReplyKeyboardRemove())
+            await process_settings(message)
