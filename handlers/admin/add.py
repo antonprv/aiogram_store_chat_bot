@@ -132,6 +132,8 @@ async def show_products(message: Message, products: List[Tuple]):
 # Логика удаления категории:
 @dp.message_handler(IsAdmin(), text=delete_category)
 async def delete_category_handler(message: Message, state: FSMContext):
+    # Подхватываем id категории из текущего статуса диалога.
+    # Все значения в статусе диалога хранятся как словарь.
     async with state.proxy() as data:
         if 'category_index' in data.keys():
             idx = data['category_index']
