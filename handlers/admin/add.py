@@ -1,3 +1,4 @@
+# Пока что реально добавляется только категория, остальное - реализация логики.
 from hashlib import md5
 from typing import Tuple, List
 
@@ -5,7 +6,7 @@ from typing import Tuple, List
 from aiogram.dispatcher import FSMContext
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
-from aiogram.types import ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardRemove, ContentType
 from aiogram.types.chat import ChatActions
 from aiogram.utils.callback_data import CallbackData
 
@@ -193,11 +194,14 @@ def back_markup():
     return markup
 
 
+# Функционал перехода назад после ввода названия товара.
+# Имя ставится заново.
 @dp.message_handler(IsAdmin(), text=back_message, state=ProductState.title)
 async def process_title_back(message: Message, state: FSMContext):
     await process_add_product(message)
 
 
+# Функционал перехода назад после ввода описания товара.
 @dp.message_handler(IsAdmin(), text=back_message, state=ProductState.body)
 async def process_body_back(message: Message, state: FSMContext):
     await ProductState.title.set()
@@ -206,3 +210,38 @@ async def process_body_back(message: Message, state: FSMContext):
         await message.answer(f"Изменить название с <b>{data['title']}</b>"
                              " на...",
                              reply_markup=back_markup())
+
+
+# Перехватываем смену состояний и сохраняем сообщение в контекст.
+# Переключаемся на слеюущее состояние(картинка)
+@dp.message_handler(IsAdmin(), state=ProductState.body)
+async def process_body(message: Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['body'] = message.text
+
+    await ProductState.next()
+    await message.answer('Фото?', reply_markup=back_markup())
+
+
+# Обработчик фото.
+@dp.message_handler(IsAdmin(), content_types=ContentType.PHOTO,
+                    state=ProductState.image)
+async def process_image_photo(message: Message, state: FSMContext):
+    # В телеграме фото обрабатываются как список элементов.
+    # Через индекс [-1] берём последнее отправленное фото
+    # и получаем его идентификатор.
+    fileID = message.photo[-1].file_id
+    # По идентификатору передаём фото боту.
+    file_info = await bot.get_file(fileID)
+    # Выполняем загрузку фото.
+    downloaded_file = (await bot.download_file(file_info.file_path)).read()
+
+    # Сохраняем данное фото в статус image, как до этого
+    # сохраняли названия и описания в другие статусы.
+    # Кстати статус - это словарь.
+    async with state.proxy() as data:
+        data['image'] = downloaded_file
+
+    # Переключаемся на следующее состояние\статус.
+    await ProductState.next()
+    await message.answer('Цена?', reply_markup=back_markup())
