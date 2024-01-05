@@ -12,7 +12,7 @@ from aiogram.utils.callback_data import CallbackData
 from loader import dp, db, bot
 from filters import IsAdmin
 from handlers.user.menu import settings
-from states import CategoryState
+from states import CategoryState, ProductState
 
 
 # Определяю тип данных, которые получу при нажатии на кнопку.
@@ -49,7 +49,7 @@ async def process_settings(message: Message):
 @dp.callback_query_handler(IsAdmin(), text='add_category')
 async def add_category_callback_handler(query: CallbackQuery):
     await query.message.delete()
-    await query.message.answer('Название категории?')
+    await query.message.answer('Введите название категории:')
     await CategoryState.title.set()
 
 
@@ -145,3 +145,23 @@ async def delete_category_handler(message: Message, state: FSMContext):
             
             await message.answer('Готово!', reply_markup=ReplyKeyboardRemove())
             await process_settings(message)
+
+
+@dp.message_handler(IsAdmin(), text=add_product)
+async def process_add_product(message: Message):
+    await ProductState.title.set()
+    
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(cancel_message)
+    
+    await message.answer('Введите название товара:', reply_markup=markup)
+
+
+@dp.message_handler(IsAdmin(), text=cancel_message,
+                    state=ProductState.title)
+async def process_cancel(message: Message, state: FSMContext):
+    await message.answer('Добавление товара отменено',
+                         reply_markup=ReplyKeyboardRemove())
+    await state.finish()
+    
+    await process_settings(message)
