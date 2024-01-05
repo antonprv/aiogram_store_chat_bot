@@ -20,12 +20,13 @@ from states import CategoryState, ProductState
 # Следом уже нужные мне данные.
 category_cb = CallbackData('category', 'id', 'action')
 
+
 @dp.message_handler(IsAdmin(), text=settings)
 async def process_settings(message: Message):
-    
+
     # Создаю объект клавиатуры.
     markup = InlineKeyboardMarkup()
-    
+
     # Делаю запрос к базе данных, получаю список категорий,
     # из каждой категории извлекаю идентификатор и название
     # и раскидываю категории по кнопкам.
@@ -35,12 +36,12 @@ async def process_settings(message: Message):
         # что находится внутри категории.
         markup.add(InlineKeyboardButton(
             title, callback_data=category_cb.new(id=idx, action='view')))
-    
+
     # Тут так же привязываю указатель add_category, и ниже по коду
     # будет обработчик такого указателя.
     markup.add(InlineKeyboardButton(
         '+ Добавить категорию', callback_data='add_category'))
-    
+
     await message.answer('Настройка категорий:', reply_markup=markup)
 
 
@@ -58,28 +59,29 @@ async def add_category_callback_handler(query: CallbackQuery):
 # а захешированная версия сообщения становится id категории.
 @dp.message_handler(IsAdmin(), state=CategoryState.title)
 async def set_category_title_handler(message: Message, state: FSMContext):
-    
+
     category_title = message.text
     idx = md5(category_title.encode('utf-8')).hexdigest()
     # Запускаю SQL-запрос с подстановкой названия категории и id.
     db.query('INSERT INTO categories VALUES (?, ?)', (idx, category_title))
-    
+
     # Выхожу из состояния title.
     await state.finish()
     await process_settings(message)
+
 
 # Перехватываю коллбэк с действием view:
 @dp.callback_query_handler(IsAdmin(), category_cb.filter(action='view'))
 async def category_callback_handler(query: CallbackQuery, callback_data: dict,
                                     state: FSMContext):
-    
+
     category_idx = callback_data['id']
 
     products = db.fetchall('''SELECT * FROM products product
-                           WHERE product.tag = 
+                           WHERE product.tag =
                            (SELECT title FROM categories WHERE idx=?)''',
                            (category_idx,))
-    
+
     await query.message.delete()
     await query.answer('Все товары этой категории:')
     # В текущем статусе диалога теперь будет храниться индекс категории.
@@ -96,18 +98,19 @@ product_cb = CallbackData('product', 'id', 'action')
 cancel_message = '🚫 Отменить'
 add_product = '➕ Добавить товар'
 delete_category = '🗑️ Удалить категорию'
+back_message = '👈 Назад'
 
 
 # Эта функция запускается из обработчика экшена 'view'.
 async def show_products(message: Message, products: List[Tuple]):
     # Добавил по приколу. Будет показывать, будто бот печатает.
     await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
-    
+
     # Для всех элементов каждого из кортежей из списка из fetchall
     # взять все элементы и сформировать с ними текст.
     for idx, title, body, image, price, tag in products:
         text = f'<b>{title}</b>\n\n{body}\n\nЦена: {price} рублей.'
-        
+
         # Для для каждого товара создаю кнопку "удалить" со своим колбэком.
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton(
@@ -116,17 +119,17 @@ async def show_products(message: Message, products: List[Tuple]):
         # Для каждого кортежа из списка вывожу сообщение с фото, текстом
         # и собственной кнопкой "удалить"
         await message.answer_photo(photo=image,
-                             caption=text,
-                             reply_makrup=markup)
-    
+                                   caption=text,
+                                   reply_makrup=markup)
+
     # Создаю большие кнопки с вариантами (сверху)
     markup = ReplyKeyboardMarkup()
     markup.add(add_product)
     markup.add(delete_category)
-    
+
     # Вывожу кнопки.
     await message.answer('Хотите что-нибудь добавить или удалить?',
-                   reply_markup=markup)
+                         reply_markup=markup)
 
 
 # Логика удаления категории:
@@ -137,31 +140,69 @@ async def delete_category_handler(message: Message, state: FSMContext):
     async with state.proxy() as data:
         if 'category_index' in data.keys():
             idx = data['category_index']
-            
+
             db.query('DELETE FROM products WHERE tag IN '
                      '(SELECT title FROM categories WHERE idx=?)',
                      (idx,))
             db.query('DELETE FROM categories WHERE idx=?', (idx,))
-            
+
             await message.answer('Готово!', reply_markup=ReplyKeyboardRemove())
             await process_settings(message)
 
 
+# Добавление товара.
 @dp.message_handler(IsAdmin(), text=add_product)
 async def process_add_product(message: Message):
+    # Ставим статус и подхватываем его следующим обработчиком.
     await ProductState.title.set()
-    
+
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(cancel_message)
-    
+
     await message.answer('Введите название товара:', reply_markup=markup)
 
 
+# Отмена добавления названия товара.
 @dp.message_handler(IsAdmin(), text=cancel_message,
                     state=ProductState.title)
 async def process_cancel(message: Message, state: FSMContext):
     await message.answer('Добавление товара отменено',
                          reply_markup=ReplyKeyboardRemove())
     await state.finish()
-    
+
     await process_settings(message)
+
+
+# Добавление названия товара.
+@dp.message_handler(IsAdmin(), state=ProductState.title)
+async def process_title(message: Message, state: FSMContext):
+    # Сохраняем название товара в текущем состоянии,
+    # чтобы потом его подхватить в следующем обработчике.
+    async with state.proxy() as data:
+        data['title'] = message.text
+
+    # Переходим к следующему состоянию (body)
+    await ProductState.next()
+    await message.answer('Введите описание:', reply_markup=back_markup())
+
+
+def back_markup():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+    markup.add(back_message)
+
+    return markup
+
+
+@dp.message_handler(IsAdmin(), text=back_message, state=ProductState.title)
+async def process_title_back(message: Message, state: FSMContext):
+    await process_add_product(message)
+
+
+@dp.message_handler(IsAdmin(), text=back_message, state=ProductState.body)
+async def process_body_back(message: Message, state: FSMContext):
+    await ProductState.title.set()
+
+    async with state.proxy() as data:
+        await message.answer(f"Изменить название с <b>{data['title']}</b>"
+                             " на...",
+                             reply_markup=back_markup())
