@@ -320,6 +320,7 @@ async def process_confirm_back(message: Message, state: FSMContext):
                              reply_makrup=back_markup())
 
 
+# Обработчик возвращения назад, чтобы сменить фото. 
 @db.message_handler(IsAdmin(), content_types=ContentType.TEXT,
                     state=ProductState.image)
 async def process_image_url(message: Message, state: FSMContext):
@@ -331,4 +332,17 @@ async def process_image_url(message: Message, state: FSMContext):
             await message.answer(f"Изменить описание с <b>{data['body']}</b>?",
                                  reply_markup=back_markup())
     else:
+        # Вежливо обрабатываем ошибку ввода.
         await message.answer('Вам нужно прислать фото товара.')
+
+
+@dp.message_handler(IsAdmin(), lambda message: not message.text.isdigit(),
+                    state=ProductState.price)
+async def process_price_invalid(message: Message, state: FSMContext):
+    if message.text == back_message:
+
+        await ProductState.image.set()
+
+        async with state.proxy() as data:
+            await message.answer("Другое изображение?",
+                                 reply_markup=back_markup())
