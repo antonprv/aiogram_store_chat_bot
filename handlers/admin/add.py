@@ -318,3 +318,17 @@ async def process_confirm_back(message: Message, state: FSMContext):
     async with state.proxy as data:
         await message.answer(f'Изенить цену с <b>{data['price']}</b>?',
                              reply_makrup=back_markup())
+
+
+@db.message_handler(IsAdmin(), content_types=ContentType.TEXT,
+                    state=ProductState.image)
+async def process_image_url(message: Message, state: FSMContext):
+    if message.text == back_message:
+
+        await ProductState.body.set()
+
+        async with state.proxy() as data:
+            await message.answer(f"Изменить описание с <b>{data['body']}</b>?",
+                                 reply_markup=back_markup())
+    else:
+        await message.answer('Вам нужно прислать фото товара.')
