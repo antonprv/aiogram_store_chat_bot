@@ -300,6 +300,7 @@ async def process_confirm(message: Message, state: FSMContext):
         await message.answer('Готово!', reply_markup=ReplyKeyboardRemove())
         await process_settings(message)
 
+
 # Выхватывает колбэк-данные кнопки "удалить" из show_products
 # и удаляет товар из базы данных.
 @dp.callback_query_handler(IsAdmin(), product_cb.filter(action='delete'))
