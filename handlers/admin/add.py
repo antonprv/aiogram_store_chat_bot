@@ -100,6 +100,7 @@ cancel_message = '🚫 Отменить'
 add_product = '➕ Добавить товар'
 delete_category = '🗑️ Удалить категорию'
 back_message = '👈 Назад'
+all_right_message = '✅ Все верно'
 
 
 # Эта функция запускается из обработчика экшена 'view'.
@@ -245,3 +246,74 @@ async def process_image_photo(message: Message, state: FSMContext):
     # Переключаемся на следующее состояние\статус.
     await ProductState.next()
     await message.answer('Цена?', reply_markup=back_markup())
+
+
+# Вывод всей информации о товаре, который подхватывается из состояния цены.
+# Прямо в обработчике проверяем, состоит ли сообщение цены только из цифр.
+@dp.message_handler(IsAdmin(), lambda message: message.text.isdigit(),
+                    state=ProductState.price)
+async def process_price(message: Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['price'] = message.text
+
+        title = data['title']
+        body = data['body']
+        price = data['price']
+
+        await ProductState.next()
+        text = f'<b>{title}</b>\n\n{body}\nЦена: {price}рублей.'
+
+        markup = check_markup()
+
+        await message.answer_photo(photo=data['image'],
+                                   caption=text,
+                                   reply_markup=markup)
+
+
+def check_markup():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
+    markup.row(back_message, all_right_message)
+
+    return markup
+
+
+# Подхватывает состояние confirm и пишет товар в базу данных.
+@dp.message_handler(IsAdmin(), text=all_right_message,
+                    state=ProductState.confirm)
+async def process_confirm(message: Message, state: FSMContext):
+    async with state.proxy() as data:
+        title = data['title']
+        body = data['body']
+        image = data['image']
+        price = data['price']
+
+        tag = db.fetchone(
+            'SELECT title FROM categories WHERE idx=?',
+            (data['category_index'],))[0]
+        idx = md5(' '.join([title, body, price, tag]
+                           ).encode('utf-8')).hexdigest()
+
+        db.query('INSERT INTO products VALUES(?, ?, ?, ?, ?, ?)',
+                 (idx, title, body, image, int(price), tag))
+
+        await state.finish()
+        await message.answer('Готово!', reply_markup=ReplyKeyboardRemove())
+        await process_settings(message)
+
+# Выхватывает колбэк-данные кнопки "удалить" из show_products
+# и удаляет товар из базы данных.
+@dp.callback_query_handler(IsAdmin(), product_cb.filter(action='delete'))
+async def delete_product_callback_handler(query: CallbackQuery,
+                                          callback_data: dict):
+    product_idx = callback_data[id]
+    db.query('DELETE FROM PRODUCTS WHERE idx=?', (product_idx,))
+    await query.answer('Удалено!')
+    await query.message.delete()
+
+
+@dp.message_handler(IsAdmin(), text=back_message, state=ProductState.confirm)
+async def process_confirm_back(message: Message, state: FSMContext):
+    await ProductState.price.set()
+    async with state.proxy as data:
+        await message.answer(f'Изенить цену с <b>{data['price']}</b>?',
+                             reply_makrup=back_markup())
