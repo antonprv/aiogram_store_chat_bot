@@ -14,6 +14,7 @@ from loader import dp, db, bot
 from filters import IsAdmin
 from handlers.user.menu import settings
 from states import CategoryState, ProductState
+from keyboards.default.markups import *
 
 
 # Определяю тип данных, которые получу при нажатии на кнопку.
@@ -96,11 +97,8 @@ async def category_callback_handler(query: CallbackQuery, callback_data: dict,
 # Колбэк при нажатии на кнопку.
 product_cb = CallbackData('product', 'id', 'action')
 
-cancel_message = '🚫 Отменить'
 add_product = '➕ Добавить товар'
 delete_category = '🗑️ Удалить категорию'
-back_message = '👈 Назад'
-all_right_message = '✅ Все верно'
 
 
 # Эта функция запускается из обработчика экшена 'view'.
@@ -122,7 +120,7 @@ async def show_products(message: Message, products: List[Tuple]):
         # и собственной кнопкой "удалить"
         await message.answer_photo(photo=image,
                                    caption=text,
-                                   reply_makrup=markup)
+                                   reply_markup=markup)
 
     # Создаю большие кнопки с вариантами (сверху)
     markup = ReplyKeyboardMarkup()
@@ -186,13 +184,6 @@ async def process_title(message: Message, state: FSMContext):
     # Переходим к следующему состоянию (body)
     await ProductState.next()
     await message.answer('Введите описание:', reply_markup=back_markup())
-
-
-def back_markup():
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    markup.add(back_message)
-
-    return markup
 
 
 # Функционал перехода назад после ввода названия товара.
@@ -270,13 +261,6 @@ async def process_price(message: Message, state: FSMContext):
                                    reply_markup=markup)
 
 
-def check_markup():
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
-    markup.row(back_message, all_right_message)
-
-    return markup
-
-
 # Подхватывает состояние confirm и пишет товар в базу данных.
 @dp.message_handler(IsAdmin(), text=all_right_message,
                     state=ProductState.confirm)
@@ -306,7 +290,7 @@ async def process_confirm(message: Message, state: FSMContext):
 @dp.callback_query_handler(IsAdmin(), product_cb.filter(action='delete'))
 async def delete_product_callback_handler(query: CallbackQuery,
                                           callback_data: dict):
-    product_idx = callback_data[id]
+    product_idx = callback_data['id']
     db.query('DELETE FROM PRODUCTS WHERE idx=?', (product_idx,))
     await query.answer('Удалено!')
     await query.message.delete()
@@ -348,3 +332,12 @@ async def process_price_invalid(message: Message, state: FSMContext):
                                  reply_markup=back_markup())
     else:
         await message.answer('Укажите цену в виде числа!')
+
+@dp.message_handler(IsAdmin(),
+                    lambda message: message.text not in [back_message,
+                                                         all_right_message],
+                    state=ProductState.confirm)
+async def process_confirm_invalid(message: Message, state: FSMContext):
+    await message.answer('Такого варианта ещё не было')
+
+
