@@ -249,7 +249,7 @@ async def process_image_photo(message: Message, state: FSMContext):
 
 
 # Вывод всей информации о товаре, который подхватывается из состояния цены.
-# Прямо в обработчике проверяем, состоит ли сообщение цены только из цифр.
+# Прямо в диспетчере проверяем, состоит ли сообщение цены только из цифр.
 @dp.message_handler(IsAdmin(), lambda message: message.text.isdigit(),
                     state=ProductState.price)
 async def process_price(message: Message, state: FSMContext):
@@ -316,12 +316,12 @@ async def delete_product_callback_handler(query: CallbackQuery,
 async def process_confirm_back(message: Message, state: FSMContext):
     await ProductState.price.set()
     async with state.proxy as data:
-        await message.answer(f'Изенить цену с <b>{data['price']}</b>?',
+        await message.answer(f'Изенить цену с <b>{data["price"]}</b>?',
                              reply_makrup=back_markup())
 
 
 # Обработчик возвращения назад, чтобы сменить фото. 
-@db.message_handler(IsAdmin(), content_types=ContentType.TEXT,
+@dp.message_handler(IsAdmin(), content_types=ContentType.TEXT,
                     state=ProductState.image)
 async def process_image_url(message: Message, state: FSMContext):
     if message.text == back_message:
@@ -346,3 +346,5 @@ async def process_price_invalid(message: Message, state: FSMContext):
         async with state.proxy() as data:
             await message.answer("Другое изображение?",
                                  reply_markup=back_markup())
+    else:
+        await message.answer('Укажите цену в виде числа!')
