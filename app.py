@@ -9,7 +9,7 @@ from logging import basicConfig, INFO
 import handlers
 
 
-# Проверка работы
+# Проверка работы \ Главная функция программы
 def main():
     executor.start_polling(dp, on_startup=on_startup, skip_updates=False)
 
