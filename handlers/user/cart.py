@@ -19,21 +19,26 @@ async def process_cart(message: Message, state: FSMContext):
     else:
 
         await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
+        # Создаём словарь с ключами из id товаров и значениями в виде их
+        # параметров.
         async with state.proxy() as data:
             data['products'] = {}
 
         order_cost = 0
 
         for _, idx, count_in_cart in cart_data:
-            product = db.fetchone('SELECT * FROM products WHERE idx = ?',
+            # fethone возвращает 1 кортеж product.
+            product: Tuple = db.fetchone('SELECT * FROM products WHERE idx = ?',
                                   (idx,))
 
             if product is None:
                 db.query('DELETE FROM cart WHERE idx = ?', (idx,))
             else:
+                # Распаковываем кортеж product в переменные по порядку.
                 _, title, body, image, price, _ = product
                 order_cost += price
 
+                # Заполняем ранее созданный словарь.
                 async with state.proxy() as data:
                     data['products'][idx] = [title, price, count_in_cart]
 
@@ -50,4 +55,3 @@ async def process_cart(message: Message, state: FSMContext):
             markup.add('📦 Оформить заказ')
             await message.answer('перейти к оформлению?',
                                  reply_markup=markup)
-                
