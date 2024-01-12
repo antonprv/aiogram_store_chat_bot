@@ -339,5 +339,3 @@ async def process_price_invalid(message: Message, state: FSMContext):
                     state=ProductState.confirm)
 async def process_confirm_invalid(message: Message, state: FSMContext):
     await message.answer('Такого варианта ещё не было')
-
-
