@@ -1,4 +1,6 @@
 venv/*
 /__pycache__/
+__pycache__/*
+handlers/admin/__pycache__/*
 *.pyc
 data/database.db
