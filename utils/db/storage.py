@@ -16,6 +16,7 @@ class DatabaseManager:
         self.cursor = self.connect.cursor()
 
     # Создаём необходимые таблицы с помощью вспомогательного метода query.
+    # В заказах и тележке cid = уникальный id чата, где заказывается товар.
     def create_tables(self) -> None:
         self.query(
             'CREATE TABLE IF NOT EXISTS products (idx TEXT, title TEXT, '

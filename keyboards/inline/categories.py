@@ -4,9 +4,10 @@ from loader import db
 
 category_cb = CallbackData('category', 'id', 'action')
 
+# Вывод списка категорий в виде кнопок, с колбэк данными для каждой кнопки.
 def categories_markup():
     global category_cb
-    
+
     markup = InlineKeyboardMarkup()
     for idx, title in db.fetchall('SELECT * FROM categories'):
         markup.add(InlineKeyboardButton(title,

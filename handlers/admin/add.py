@@ -320,6 +320,7 @@ async def process_image_url(message: Message, state: FSMContext):
         await message.answer('Вам нужно прислать фото товара.')
 
 
+# Обработка на случай, если в цене введены не цифры.
 @dp.message_handler(IsAdmin(), lambda message: not message.text.isdigit(),
                     state=ProductState.price)
 async def process_price_invalid(message: Message, state: FSMContext):
@@ -333,6 +334,8 @@ async def process_price_invalid(message: Message, state: FSMContext):
     else:
         await message.answer('Укажите цену в виде числа!')
 
+
+# Проверка на случай, если вместо кнопки пользователь просто что-то введёт.
 @dp.message_handler(IsAdmin(),
                     lambda message: message.text not in [back_message,
                                                          all_right_message],
