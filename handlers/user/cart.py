@@ -9,6 +9,7 @@ from keyboards.inline.products_from_cart import product_markup
 from loader import db, dp, bot
 from .menu import cart
 
+
 @dp.message_handler(IsUser(), text=cart)
 async def process_cart(message: Message, state: FSMContext):
 
@@ -28,8 +29,9 @@ async def process_cart(message: Message, state: FSMContext):
 
         for _, idx, count_in_cart in cart_data:
             # fethone возвращает 1 кортеж product.
-            product: Tuple = db.fetchone('SELECT * FROM products WHERE idx = ?',
-                                  (idx,))
+            product: List[Tuple] = db.fetchone(
+                'SELECT * FROM products WHERE idx = ?',
+                (idx,))
 
             if product is None:
                 db.query('DELETE FROM cart WHERE idx = ?', (idx,))
