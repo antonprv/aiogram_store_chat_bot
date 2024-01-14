@@ -12,7 +12,7 @@ from keyboards.default import checkout_message
 from keyboards.default.markups import *
 from loader import db, dp, bot
 import logging
-from .menu import cart
+from .menu import cart, delivery_status
 from states import CheckoutState
 
 
@@ -228,9 +228,9 @@ async def process_confirm(message: Message, state: FSMContext):
                     state=CheckoutState.confirm)
 async def process_confirm(message: Message, state: FSMContext):
     markup = ReplyKeyboardRemove()
-    
+
     logging.info('A deal is made.')
-    
+
     async with state.proxy() as data:
         cid = message.chat.id
         products = [idx + '=' + str(quantity)
@@ -241,8 +241,35 @@ async def process_confirm(message: Message, state: FSMContext):
         db.query('INSERT INTO orders VALUES (?, ?, ?, ?)',
                  (cid, data['name'], data['address'], ' '.join(products)))
         db.query('DELETE FROM cart WHERE cid=?', (cid,))
-        
+
         await message.answer('Ок! Ваш заказ уже в пути 🚀\nИмя: <b>' + data[
                 'name'] + '</b>\nАдрес: <b>' + data['address'] + '</b>',
                              reply_markup=markup)
         await state.finish()
+
+
+@dp.message_handler(IsUser(), text=delivery_status)
+async def process_delivery_status(message: Message):
+    orders = db.fetchall('SELECT * FROM orders WHERE cid=?',
+                         (message.chat.id))
+
+    if len(orders) == 0:
+        await message.answer('У вас нет активных заказов')
+    else:
+        await delivery_status_answer(message, orders)
+
+
+async def delivery_status_answer(message, orders):
+    res = ''
+
+    for order in orders:
+        res += f'Заказ <b>№{order[3]}</b>'
+        answer = [
+            ' лежит на складе.',
+            ' уже в пути!',
+            ' прибы и ждёт вас на почте!'
+            ]
+        res += answer[0]
+        res += '\n\n'
+
+    await message.answer(res)

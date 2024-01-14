@@ -12,7 +12,7 @@ from aiogram.utils.callback_data import CallbackData
 
 from loader import dp, db, bot
 from filters import IsAdmin
-from handlers.user.menu import settings
+from handlers.user.menu import settings, orders
 from states import CategoryState, ProductState
 from keyboards.default.markups import *
 
