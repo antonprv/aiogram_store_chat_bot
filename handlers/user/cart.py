@@ -224,3 +224,25 @@ async def process_confirm(message: Message, state: FSMContext):
                              reply_markup=back_markup())
 
 
+@dp.message_handler(IsUser(), text=confirm_message,
+                    state=CheckoutState.confirm)
+async def process_confirm(message: Message, state: FSMContext):
+    markup = ReplyKeyboardRemove()
+    
+    logging.info('A deal is made.')
+    
+    async with state.proxy() as data:
+        cid = message.chat.id
+        products = [idx + '=' + str(quantity)
+                    for idx, quantity in db.fetchall('''SELECT idx,
+                                                     quantity FROM cart
+                                                     WHERE cid=?''',
+                                                     (cid,))]
+        db.query('INSERT INTO orders VALUES (?, ?, ?, ?)',
+                 (cid, data['name'], data['address'], ' '.join(products)))
+        db.query('DELETE FROM cart WHERE cid=?', (cid,))
+        
+        await message.answer('Ок! Ваш заказ уже в пути 🚀\nИмя: <b>' + data[
+                'name'] + '</b>\nАдрес: <b>' + data['address'] + '</b>',
+                             reply_markup=markup)
+        await state.finish()
