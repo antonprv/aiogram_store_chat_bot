@@ -3,6 +3,7 @@ from typing import List, Tuple
 from aiogram.types import Message, CallbackQuery
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ChatActions, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from filters import IsUser
 from keyboards.inline.products_from_cart import product_markup
@@ -10,6 +11,7 @@ from keyboards.inline.products_from_catalog import product_cb
 from keyboards.default import checkout_message
 from keyboards.default.markups import *
 from loader import db, dp, bot
+import logging
 from .menu import cart
 from states import CheckoutState
 
@@ -160,3 +162,65 @@ async def process_check_cart_all_right(message: Message, state: FSMContext):
 async def process_name_back(message: Message, state: FSMContext):
     await CheckoutState.check_cart.set()
     await checkout(message, state)
+
+
+@dp.message_handler(IsUser(), state=CheckoutState.name)
+async def process_name(message: Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['name'] = message.text
+
+        if 'address' in data.keys():
+            await confirm(message)
+            await CheckoutState.confirm.set()
+
+        else:
+            await CheckoutState.next()
+            await message.answer('Укажите свой адрес места жительства.',
+                                 reply_markup=back_markup())
+
+
+@dp.message_handler(IsUser(), text=back_message,
+                    state=CheckoutState.address)
+async def process_address_back(message: Message, state: FSMContext):
+    async with state.proxy() as data:
+        await message.answer('Ищменить имя с <b>' + data['name'] + '</b>?',
+                             reply_markup=back_markup())
+    await CheckoutState.name.set()
+
+
+@dp.message_handler(IsUser(), state=CheckoutState.address)
+async def process_address(message: Message, state: FSMContext):
+
+    async with state.proxy() as data:
+        data['address'] = message.text
+
+    await confirm(message)
+    await CheckoutState.next()
+
+
+async def confirm(message):
+    await message.answer(
+        'Убедитесь, что всё праивльно оформлено и подтвердите заказ.',
+        reply_markup=confirm_markup())
+
+
+@dp.message_handler(IsUser(),
+                    lambda message: message.text not in [confirm_message,
+                                                         back_message],
+                    state=CheckoutState.confirm)
+async def process_confirm_invalid(message: Message):
+    await message.reply('Такого варианта не было')
+
+
+@dp.message_handler(IsUser(), text=back_message,
+                    state=CheckoutState.confirm)
+async def process_confirm(message: Message, state: FSMContext):
+
+    await CheckoutState.address.set()
+
+    async with state.proxy as data:
+        await message.answer('Изменить адрес с <b>' + data['address']
+                             + '</b>?',
+                             reply_markup=back_markup())
+
+
