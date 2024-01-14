@@ -7,8 +7,11 @@ from aiogram.types import ChatActions, ReplyKeyboardMarkup
 from filters import IsUser
 from keyboards.inline.products_from_cart import product_markup
 from keyboards.inline.products_from_catalog import product_cb
+from keyboards.default import checkout_message
+from keyboards.default.markups import *
 from loader import db, dp, bot
 from .menu import cart
+from states import CheckoutState
 
 
 # Выводим список товаров в корзине.
@@ -60,7 +63,7 @@ async def process_cart(message: Message, state: FSMContext):
         if order_cost != 0:
             markup = ReplyKeyboardMarkup(resize_keyboard=True,
                                          selective=True)
-            markup.add('📦 Оформить заказ')
+            markup.add(checkout_message)
             await message.answer('перейти к оформлению?',
                                  reply_markup=markup)
 
@@ -108,3 +111,52 @@ async def product_callback_handler(query: CallbackQuery,
                     # .edit_reply_markup редактирует существующий маркап.
                     await query.message.edit_reply_markup(
                         product_markup(idx, count_in_cart))
+
+
+@dp.message_handler(IsUser(), text=checkout_message)
+async def process_checkout(message: Message, state: FSMContext):
+
+    await CheckoutState.check_cart.set()
+    await checkout(message, state)
+
+
+async def checkout(message: Message, state: FSMContext):
+    answer = ''
+    total_price = 0
+
+    async with state.proxy() as data:
+        for title, price, count_in_cart in data['products'].values():
+            temp_price = count_in_cart * price
+            answer += f'<b>{title}</b> * {count_in_cart}шт. = {temp_price}₽\n'
+            total_price += temp_price
+
+    await message.answer(f'{answer}\nОбщая сумма заказа: {total_price}₽.',
+                         reply_markup=check_markup())
+
+
+@dp.message_handler(IsUser(),
+                    lambda message: message.text not in [all_right_message,
+                                                         back_message],
+                    state=CheckoutState.check_cart)
+async def process_check_cart_invalid(message: Message):
+    await message.reply('Такого варианта ещё не было.')
+
+
+@dp.message_handler(IsUser(), text=back_message,
+                    state=CheckoutState.check_cart)
+async def process_check_cart_back(message: Message, state: FSMContext):
+    await state.finish()
+    await process_cart(message, state)
+
+
+@dp.message_handler(IsUser(), text=all_right_message,
+                    state=CheckoutState.check_cart)
+async def process_check_cart_all_right(message: Message, state: FSMContext):
+    await CheckoutState.next()
+    await message.answer('Укажите своё имя:', reply_markup=back_markup())
+
+
+@dp.message_handler(IsUser(), text=back_message, state=CheckoutState.name)
+async def process_name_back(message: Message, state: FSMContext):
+    await CheckoutState.check_cart.set()
+    await checkout(message, state)

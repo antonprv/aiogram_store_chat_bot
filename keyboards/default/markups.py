@@ -3,6 +3,7 @@ from aiogram.types import ReplyKeyboardMarkup
 back_message = '👈 Назад'
 all_right_message = '✅ Все верно'
 cancel_message = '🚫 Отменить'
+checkout_message = '📦 Оформить заказ'
 
 
 def back_markup():
