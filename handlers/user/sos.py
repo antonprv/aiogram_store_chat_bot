@@ -8,6 +8,8 @@ from states import SosState
 from filters import IsUser
 from loader import dp, db
 
+
+# Обработчик комм
 @dp.message_handler(commands='sos')
 async def cmd_sos(message: Message):
     await SosState.question.set()
