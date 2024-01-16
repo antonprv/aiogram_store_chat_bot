@@ -8,7 +8,6 @@ from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from filters import IsUser
 from keyboards.inline.products_from_cart import product_markup
 from keyboards.inline.products_from_catalog import product_cb
-from keyboards.default import checkout_message
 from keyboards.default.markups import *
 from loader import db, dp, bot
 import logging
@@ -238,6 +237,7 @@ async def process_confirm(message: Message, state: FSMContext):
                                                      quantity FROM cart
                                                      WHERE cid=?''',
                                                      (cid,))]
+
         db.query('INSERT INTO orders VALUES (?, ?, ?, ?)',
                  (cid, data['name'], data['address'], ' '.join(products)))
         db.query('DELETE FROM cart WHERE cid=?', (cid,))
@@ -251,7 +251,7 @@ async def process_confirm(message: Message, state: FSMContext):
 @dp.message_handler(IsUser(), text=delivery_status)
 async def process_delivery_status(message: Message):
     orders = db.fetchall('SELECT * FROM orders WHERE cid=?',
-                         (message.chat.id))
+                         (message.chat.id,))
 
     if len(orders) == 0:
         await message.answer('У вас нет активных заказов')
@@ -267,7 +267,7 @@ async def delivery_status_answer(message, orders):
         answer = [
             ' лежит на складе.',
             ' уже в пути!',
-            ' прибы и ждёт вас на почте!'
+            ' прибыл и ждёт вас на почте!'
             ]
         res += answer[0]
         res += '\n\n'

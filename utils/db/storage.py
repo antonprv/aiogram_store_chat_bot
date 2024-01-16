@@ -22,8 +22,8 @@ class DatabaseManager:
             'CREATE TABLE IF NOT EXISTS products (idx TEXT, title TEXT, '
             'body TEXT, photo BLOB, price INT, tag TEXT)')
         self.query(
-            'CREATE TABLE IF NOT EXISTS orders (cid INT, usr_name TEXT, '
-            'usr_address TEXT, products TEXT)')
+            'CREATE TABLE IF NOT EXISTS orders (cid INT,'
+            'usr_name TEXT, usr_address TEXT, products TEXT)')
         self.query(
             'CREATE TABLE IF NOT EXISTS cart (cid INT, idx TEXT, '
             'quantity INT)')
