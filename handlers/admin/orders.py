@@ -3,6 +3,7 @@ from loader import dp, db
 from handlers.user.menu import orders
 from filters import IsAdmin
 
+# Обработчик заказов для администратора.
 @dp.message_handler(IsAdmin(), text=orders)
 async def process_orders(message: Message):
     order = db.fetchall('SELECT * FROM orders')
