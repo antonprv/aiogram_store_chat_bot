@@ -14,6 +14,7 @@ from states import AnswerState
 
 question_cb = CallbackData('question', 'cid', 'action')
 
+
 @dp.message_handler(IsAdmin(), text=questions)
 async def process_questions(message: Message):
     await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
@@ -35,6 +36,7 @@ async def process_questions(message: Message):
             await message.answer(question, reply_markup=markup)
 
 
+# Перехватываем экшен, и переходим к списку вопросов.
 @dp.callback_query_handler(IsAdmin(), question_cb.filter(action='answer'))
 async def process_answer(query: CallbackQuery, callback_data: dict,
                          state: FSMContext):
@@ -46,6 +48,7 @@ async def process_answer(query: CallbackQuery, callback_data: dict,
     await AnswerState.answer.set()
 
 
+# Переходим на следующий стейт, с активной кнопкой отмены.
 @dp.message_handler(IsAdmin(), state=AnswerState.answer)
 async def process_submit(message: Message, state: FSMContext):
     async with state.proxy() as data:
@@ -56,6 +59,9 @@ async def process_submit(message: Message, state: FSMContext):
                          reply_markup=submit_markup())
 
 
+# Перехватываем состояние, выводим сообщение, что всё отменено.
+# На самом деле мы ничего и не сделали. В целях оптимизации
+# БД обновляется только после всех подтверждений.
 @dp.message_handler(IsAdmin(), text=cancel_message,
                     state=AnswerState.submit)
 async def process_send_answer(message: Message, state: FSMContext):
@@ -63,9 +69,12 @@ async def process_send_answer(message: Message, state: FSMContext):
     await state.finish()
 
 
+# Перехватываем колбэк кнопки и состояние, и обновляем БД.
+# Удаляем из БД вопрос, выводим пользователю сообщение состоящее из
+# вопроса и ответа.
 @dp. message_handler(IsAdmin(), text=all_right_message,
                      state=AnswerState.submit)
-async def process_send_answer(message Message, state: FSMContext):
+async def process_send_answer(message: Message, state: FSMContext):
     async with state.proxy as data:
         answer = data['answer']
         cid = data['cid']
