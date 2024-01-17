@@ -8,6 +8,8 @@ from filters import IsAdmin
 from handlers.user.menu import orders
 from loader import dp, db, bot
 from states import OrderState
+from keyboards.default.markups import back_markup, back_message, \
+    order_details_message
 
 
 
@@ -25,49 +27,32 @@ async def process_orders(message: Message):
         await order_answer(message, orders)
 
 
-async def order_answer(message: Message, orders: List[Tuple],
-                       state: FSMContext):
+async def order_answer(message: Message, orders: List[Tuple]):
     await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
 
     prev_cid = set()
     OrderState.info.set()
-    order_info: dict = {}
+    counter = 1
 
+    for cid, usr_name, _, _ in orders:
 
-    for cid, usr_name, usr_address, products in orders:
-
-        cid = order_info['cid']
-        usr_name =
-
-        counter = 1
         prev_cid.add(cid)
         text = f'Заказ <b>№{cid}</b>\n\n'
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton(text=order_details_message,
+            callback_data=order_cb.new(id=cid, action='details')))
 
-        if cid in prev_cid:
-            counter += 1
-            text += f'Заказ <b>№{cid} {counter}</b>\n\n'
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton(
-                '📝 Детали заказов',
-                callback_data=order_cb.new(id=cid, action='same_cid')))
-
-            await message.answer(text=f'Все заказы пользователя {usr_name}:'
-                                f'{text}',
-                           reply_markup=markup)
-        else:
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton(
-                '📝 Детали заказа',
-                callback_data=order_cb.new(id=cid, action='diff_cid')))
-
-            await message.answer(text=f'У пользователя {usr_name}'
-                                      f'только 1 заказ:',
-                                 reply_markup=markup)
+        await message.answer(text=f'Pаказ:\n{cid} пользователя {usr_name}',
+                             reply_markup=markup)
 
 
-@dp.message_handler(IsAdmin(), order_cb.filter(action='diff_cid'))
+@dp.message_handler(IsAdmin(), order_cb.filter(action='details'))
 async def process_one_order(query: CallbackQuery):
-    query.message.delete()
-    query.message.answer()
+    await query.message.delete()
+    for cid, usr_name, usr_address, products in orders:
+        text = (f'Заказ <b>№{cid}: {usr_name}</b>\n'
+                f'Адрес доставки: {usr_address}\n'
+                f'Состав заказа: {products}')
 
-@dp.message_handler(IsAdmin(), order_cb.filter(action='same_cid'))
+        await query.message.answer(text=text, reply_markup=back_markup())
+

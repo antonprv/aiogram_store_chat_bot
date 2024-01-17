@@ -232,9 +232,10 @@ async def process_confirm(message: Message, state: FSMContext):
 
     async with state.proxy() as data:
         cid = message.chat.id
-        products = [idx + '=' + str(quantity)
-                    for idx, quantity in db.fetchall('''SELECT idx,
+        products = [title + '=' + str(quantity)
+                    for title, quantity in db.fetchall('''SELECT title,
                                                      quantity FROM cart
+                                JOIN products ON cart.idx = products.idx
                                                      WHERE cid=?''',
                                                      (cid,))]
 
