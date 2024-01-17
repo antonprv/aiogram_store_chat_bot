@@ -10,7 +10,7 @@ from loader import dp, db, bot
 from states import OrderState
 from keyboards.default.markups import back_markup, back_message, \
     order_details_message
-
+from keyboards.inline.order_states import order_state_markup
 
 
 order_cb = CallbackData('order', 'id', 'action')
@@ -54,5 +54,7 @@ async def process_one_order(query: CallbackQuery):
                 f'Адрес доставки: {usr_address}\n'
                 f'Состав заказа: {products}')
 
-        await query.message.answer(text=text, reply_markup=back_markup())
+        await query.message.answer(text=text,
+                                   reply_markup=InlineKeyboardMarkup().
+                                   add(order_state_markup(), back_markup()))
 

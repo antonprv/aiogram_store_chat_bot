@@ -8,9 +8,6 @@ confirm_message = '✅ Подтвердить заказ'
 
 order_details_message = '📝 Детали заказа'
 order_status_message = '🚚 Изменить статус'
-order_idle = '🏚 На складе'
-order_going = '🛤 В пути'
-order_arrived = ''
 
 
 def back_markup():
