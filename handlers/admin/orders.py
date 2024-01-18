@@ -14,7 +14,6 @@ from keyboards.inline.order_states import order_info_markup, order_cb, \
     order_state_markup, order_state_cb
 
 
-
 # Обработчик заказов для администратора.
 @dp.message_handler(IsAdmin(), text=orders)
 async def process_orders(message: Message):
@@ -56,7 +55,7 @@ async def process_order(query: CallbackQuery):
     await OrderState.next()
     await query.message.delete()
     for cid, usr_name, usr_address, products in orders:
-        global text = (f'Заказ <b>№{cid}: {usr_name}</b>\n'
+        text = (f'Заказ <b>№{cid}: {usr_name}</b>\n'
                 f'Адрес доставки: {usr_address}\n'
                 f'Состав заказа: {products}')
 
@@ -72,11 +71,14 @@ async def process_order_back(message: Message, state: FSMContext):
 
 @dp.message_handler(IsAdmin(), order_cb.filter(action='status'),
                     state=OrderState.details)
-async def process_order_status(query: CallbackQuery, state: FSMContext):
+async def process_order_status(query: CallbackQuery, state: FSMContext,
+                               callback_data: dict):
+    idx = callback_data['id']
     await state.finish()
-    await query.message.delete()
-    await query.message.answer(text=text, reply_markup=order_state_markup())
+    await OrderDeliveryState.delivery_state.set()
+    await query.message.edit_reply_markup(order_state_markup(idx))
+    await query.message.answer(back_markup())
 
-@dp.message_handler(IsAdmin(), order_state_cb.filter(action='idle'))
+@dp.message_handler(IsAdmin(), order_state_cb.filter(action='idle'),
+                    OrderDeliveryState.delivery_state)
 async def process_status_idle(query: CallbackQuery):
-    query.message
