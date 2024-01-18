@@ -9,6 +9,8 @@ from filters import IsUser
 from keyboards.inline.products_from_cart import product_markup
 from keyboards.inline.products_from_catalog import product_cb
 from keyboards.default.markups import *
+from keyboards.inline.order_states import order_idle, order_going, \
+    order_arrived
 from loader import db, dp, bot
 import logging
 from .menu import cart, delivery_status
@@ -239,8 +241,9 @@ async def process_confirm(message: Message, state: FSMContext):
                                                      WHERE cid=?''',
                                                      (cid,))]
 
-        db.query('INSERT INTO orders VALUES (?, ?, ?, ?)',
-                 (cid, data['name'], data['address'], ' '.join(products)))
+        db.query('INSERT INTO orders VALUES (?, ?, ?, ?, ?)',
+                 (cid, order_idle, data['name'],
+                  data['address'], ' '.join(products)))
         db.query('DELETE FROM cart WHERE cid=?', (cid,))
 
         await message.answer('Ок! Ваш заказ уже в пути 🚀\nИмя: <b>' + data[

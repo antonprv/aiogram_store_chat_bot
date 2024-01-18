@@ -6,9 +6,6 @@ cancel_message = '🚫 Отменить'
 checkout_message = '📦 Оформить заказ'
 confirm_message = '✅ Подтвердить заказ'
 
-order_details_message = '📝 Детали заказа'
-order_status_message = '🚚 Изменить статус'
-
 
 def back_markup():
     markup = ReplyKeyboardMarkup(resize_keyboard=True, selective=True)

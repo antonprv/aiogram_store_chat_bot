@@ -2,6 +2,8 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 
 
 class OrderState(StatesGroup):
+    list = State()
     details = State()
-    set_date = State()
-    arrived = State()
+
+class OrderDeliveryState(State):
+    delivery_state = State()
