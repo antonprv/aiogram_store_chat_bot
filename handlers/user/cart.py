@@ -264,16 +264,7 @@ async def process_delivery_status(message: Message):
 
 
 async def delivery_status_answer(message, orders):
-    res = ''
-
-    for order in orders:
-        res += f'Заказ <b>№{order[3]}</b>'
-        answer = [
-            ' лежит на складе.',
-            ' уже в пути!',
-            ' прибыл и ждёт вас на почте!'
-            ]
-        res += answer[0]
-        res += '\n\n'
-
+    orders = db.fetchone('SELECT * FROM orders WHERE cid=?',
+                         (message.chat.id,))
+    res = orders[1]
     await message.answer(res)

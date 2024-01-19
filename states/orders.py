@@ -5,5 +5,6 @@ class OrderState(StatesGroup):
     list = State()
     details = State()
 
-class OrderDeliveryState(State):
+
+class OrderDeliveryState(StatesGroup):
     delivery_state = State()
