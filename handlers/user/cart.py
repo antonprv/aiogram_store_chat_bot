@@ -1,4 +1,5 @@
 from typing import List, Tuple
+from uuid import uuid4
 
 from aiogram.types import Message, CallbackQuery
 from aiogram.dispatcher import FSMContext
@@ -9,8 +10,7 @@ from filters import IsUser
 from keyboards.inline.products_from_cart import product_markup
 from keyboards.inline.products_from_catalog import product_cb
 from keyboards.default.markups import *
-from keyboards.inline.order_states import order_idle, order_going, \
-    order_arrived
+from keyboards.inline.order_states import order_idle
 from loader import db, dp, bot
 import logging
 from .menu import cart, delivery_status
@@ -20,7 +20,6 @@ from states import CheckoutState
 # Выводим список товаров в корзине.
 @dp.message_handler(IsUser(), text=cart)
 async def process_cart(message: Message, state: FSMContext):
-
     cart_data: List[Tuple] = db.fetchall(
         'SELECT * FROM cart WHERE cid = ?', (message.chat.id,))
     if len(cart_data) == 0:
@@ -109,7 +108,7 @@ async def product_callback_handler(query: CallbackQuery,
                     db.query('''UPDATE cart
                     SET quantity = ?
                     WHERE cid = ? AND idx = ?''',
-                                (count_in_cart, query.message.chat.id, idx))
+                             (count_in_cart, query.message.chat.id, idx))
 
                     # .edit_reply_markup редактирует существующий маркап.
                     await query.message.edit_reply_markup(
@@ -118,7 +117,6 @@ async def product_callback_handler(query: CallbackQuery,
 
 @dp.message_handler(IsUser(), text=checkout_message)
 async def process_checkout(message: Message, state: FSMContext):
-
     await CheckoutState.check_cart.set()
     await checkout(message, state)
 
@@ -184,14 +182,13 @@ async def process_name(message: Message, state: FSMContext):
                     state=CheckoutState.address)
 async def process_address_back(message: Message, state: FSMContext):
     async with state.proxy() as data:
-        await message.answer('Ищменить имя с <b>' + data['name'] + '</b>?',
+        await message.answer('Изменить имя с <b>' + data['name'] + '</b>?',
                              reply_markup=back_markup())
     await CheckoutState.name.set()
 
 
 @dp.message_handler(IsUser(), state=CheckoutState.address)
 async def process_address(message: Message, state: FSMContext):
-
     async with state.proxy() as data:
         data['address'] = message.text
 
@@ -216,7 +213,6 @@ async def process_confirm_invalid(message: Message):
 @dp.message_handler(IsUser(), text=back_message,
                     state=CheckoutState.confirm)
 async def process_confirm(message: Message, state: FSMContext):
-
     await CheckoutState.address.set()
 
     async with state.proxy as data:
@@ -234,20 +230,22 @@ async def process_confirm(message: Message, state: FSMContext):
 
     async with state.proxy() as data:
         cid = message.chat.id
-        products = [title + '=' + str(quantity)
-                    for title, quantity in db.fetchall('''SELECT title,
-                                                     quantity FROM cart
+        ord_id = str(uuid4())[:8]
+
+        products = [title + ' = ' + str(quantity) + '\n'
+                    for title, quantity in db.fetchall('''SELECT products.title,
+                                                     cart.quantity FROM cart
                                 JOIN products ON cart.idx = products.idx
                                                      WHERE cid=?''',
-                                                     (cid,))]
+                                                       (cid,))]
 
-        db.query('INSERT INTO orders VALUES (?, ?, ?, ?, ?)',
-                 (cid, order_idle, data['name'],
+        db.query('INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?)',
+                 (cid, ord_id, order_idle, data['name'],
                   data['address'], ' '.join(products)))
         db.query('DELETE FROM cart WHERE cid=?', (cid,))
 
         await message.answer('Ок! Ваш заказ уже в пути 🚀\nИмя: <b>' + data[
-                'name'] + '</b>\nАдрес: <b>' + data['address'] + '</b>',
+            'name'] + '</b>\nАдрес: <b>' + data['address'] + '</b>',
                              reply_markup=markup)
         await state.finish()
 
@@ -264,7 +262,14 @@ async def process_delivery_status(message: Message):
 
 
 async def delivery_status_answer(message, orders):
-    orders = db.fetchone('SELECT * FROM orders WHERE cid=?',
+    orders = db.fetchall('SELECT * FROM orders WHERE cid=?',
                          (message.chat.id,))
-    res = orders[1]
-    await message.answer(res)
+
+    for _, ord_id, state, usr_name, usr_address, products in orders:
+        text = (f'Заказ№ <b>{ord_id}</b>\n'
+                f'пользователя <b>{usr_name}</b>:\n'
+                f'Адрес доставки: <b>{usr_address}</b>\n'
+                f'Состав заказа: <b>{products}</b>\n'
+                f'Статус заказа: {state}')
+
+        await message.answer(text=text)

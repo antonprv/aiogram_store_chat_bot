@@ -146,7 +146,8 @@ async def delete_category_handler(message: Message, state: FSMContext):
                      (idx,))
             db.query('DELETE FROM categories WHERE idx=?', (idx,))
 
-            await message.answer('Готово!', reply_markup=ReplyKeyboardRemove())
+            await message.answer('Готово!',
+                                 reply_markup=ReplyKeyboardRemove())
             await process_settings(message)
 
 

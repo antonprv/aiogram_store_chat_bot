@@ -1,15 +1,11 @@
 from aiogram.dispatcher import FSMContext
 from aiogram.types import Message, ChatActions, InlineKeyboardMarkup, \
     InlineKeyboardButton, CallbackQuery
-from aiogram.utils.callback_data import CallbackData
 from typing import List, Tuple
-from uuid import uuid4
 
 from filters import IsAdmin
 from handlers.user.menu import orders
 from loader import dp, db, bot
-from states import OrderState, OrderDeliveryState
-from keyboards.default.markups import back_markup, back_message
 from keyboards.inline.order_states import *
 
 
@@ -17,7 +13,6 @@ from keyboards.inline.order_states import *
 @dp.message_handler(IsAdmin(), text=orders)
 async def process_orders(message: Message):
     orders = db.fetchall('SELECT * FROM orders')
-    await OrderState.list.set()
 
     if len(orders) == 0:
         await message.answer('У вас нет заказов.')
@@ -29,81 +24,66 @@ async def order_answer(message: Message, orders: List[Tuple]):
     await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
 
     prev_cid = set()
-    counter: int = 1
+    counter: int = 0
 
-    for cid, usr_name, _, _ in orders:
+    for cid, ord_id, _, usr_name, _, _ in orders:
 
-        idx = str(uuid4())[:8]
         prev_cid.add(cid)
+        c_info = cid
 
         if cid in prev_cid:
             counter += 1
-            cid = f'{cid} ({counter})'
+            c_info = f'{cid} ({counter})'
 
-        text = f'Заказ:\n{cid} пользователя {usr_name}'
+        text = f'Заказ:\n{c_info} пользователя {usr_name}'
         markup = InlineKeyboardMarkup()
-        markup = order_info_markup(idx=idx, cid=cid)
+        markup = order_info_markup(ord_id=ord_id, cid=cid)
 
         await message.answer(text=text,
                              reply_markup=markup)
 
 
-@dp.message_handler(IsAdmin(), order_cb.filter(action='details'),
-                    state=OrderState.list)
-async def process_order(query: CallbackQuery):
-    await OrderState.next()
-    await query.message.delete()
-    for cid, usr_name, usr_address, products in orders:
-        text = (f'Заказ <b>№{cid}: {usr_name}</b>\n'
-                f'Адрес доставки: {usr_address}\n'
-                f'Состав заказа: {products}')
+@dp.callback_query_handler(IsAdmin(), order_cb.filter(action='details'))
+async def process_order(query: CallbackQuery, callback_data: dict):
+    cid = callback_data['cid']
+    ord_id = callback_data['id']
 
-        await query.message.answer(text=text,
-                                   reply_markup=back_markup())
+    order_one = db.fetchone('SELECT * FROM orders WHERE ord_id=? AND cid=?',
+                            (ord_id, cid))
 
+    text = (f'Заказ <b>№{order_one[0]}: {order_one[3]}</b>\n'
+            f'Адрес доставки: {order_one[4]}\n'
+            f'Состав заказа: {order_one[5]}')
 
-@dp.message_handler(IsAdmin(), text=back_message, state=OrderState.details)
-async def process_order_back(message: Message, state: FSMContext):
-    await state.finish()
-    await process_orders(message)
+    await query.message.answer(text=text)
 
 
-@dp.message_handler(IsAdmin(), order_cb.filter(action='status'),
-                    state=OrderState.details)
+@dp.callback_query_handler(IsAdmin(), order_cb.filter(action='status'))
 async def process_order_status(query: CallbackQuery, state: FSMContext,
                                callback_data: dict):
-    idx = callback_data['id']
-    await state.finish()
-    await OrderDeliveryState.delivery_state.set()
-    await query.message.edit_reply_markup(order_state_markup(idx))
-    await query.message.answer(back_markup())
+    ord_id = callback_data['id']
+    cid = callback_data['cid']
+
+    await query.message.edit_reply_markup(order_state_markup(ord_id=ord_id,
+                                                             cid=cid))
 
 
-@dp.message_handler(IsAdmin(), order_cb.filter(action='idle'),
-                    state=OrderDeliveryState.delivery_state)
-@dp.message_handler(IsAdmin(), order_cb.filter(action='going'),
-                    state=OrderDeliveryState.delivery_state)
-@dp.message_handler(IsAdmin(), order_cb.filter(action='arrived'),
-                    state=OrderDeliveryState.delivery_state)
-async def process_status_idle(query: CallbackQuery, callback_data: dict):
+@dp.callback_query_handler(IsAdmin(), order_cb.filter(action='idle'))
+@dp.callback_query_handler(IsAdmin(), order_cb.filter(action='going'))
+@dp.callback_query_handler(IsAdmin(), order_cb.filter(action='arrived'))
+async def process_status(query: CallbackQuery, callback_data: dict):
     cid: str = callback_data['cid']
     action: str = callback_data['action']
     order_state_temp: str = ''
 
     if action == 'idle':
         order_state_temp = order_idle
-    else:
-        order_state_temp = order_going if action == 'going' else order_arrived
+    elif action == 'going':
+        order_state_temp = order_going
+    elif action == 'arrived':
+        order_state_temp = order_arrived
 
     db.query('UPDATE orders SET state = ? WHERE cid = ?',
              (order_state_temp, cid))
-    await query.message.delete()
     await query.message.answer(text='Статус заказа изменён.')
-    await process_order_status
 
-
-@dp.message_handler(IsAdmin(), text=back_message,
-                    state=OrderDeliveryState.delivery_state)
-async def process_order_state_back(message: Message, state: FSMContext):
-    await state.finish()
-    await process_orders(message)

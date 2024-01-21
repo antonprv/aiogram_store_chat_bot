@@ -10,9 +10,9 @@ from keyboards.default.markups import all_right_message, cancel_message, \
     submit_markup
 from loader import dp, db, bot
 from states import AnswerState
+from utils.no_emoji import strip_emojis
 
-
-question_cb = CallbackData('question', 'cid', 'action')
+question_cb = CallbackData('question', 'cid', 'qid', 'action')
 
 
 @dp.message_handler(IsAdmin(), text=questions)
@@ -27,11 +27,12 @@ async def process_questions(message: Message):
     else:
         # Внутри каждой кнопки "ответить" хранятся id чата,
         # и действие-пересылка на следующего обработчика.
-        for cid, question in questions:
+        for cid, qid, question, _ in questions:
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton(
                 'Ответить',
-                callback_data=question_cb.new(cid=cid, action='answer')))
+                callback_data=question_cb.new(cid=cid, qid=qid,
+                                              action='answer')))
 
             await message.answer(question, reply_markup=markup)
 
@@ -42,6 +43,7 @@ async def process_answer(query: CallbackQuery, callback_data: dict,
                          state: FSMContext):
     async with state.proxy() as data:
         data['cid'] = callback_data['cid']
+        data['qid'] = callback_data['qid']
 
     await query.message.answer('Напиши ответ.',
                                reply_markup=ReplyKeyboardRemove())
@@ -52,10 +54,10 @@ async def process_answer(query: CallbackQuery, callback_data: dict,
 @dp.message_handler(IsAdmin(), state=AnswerState.answer)
 async def process_submit(message: Message, state: FSMContext):
     async with state.proxy() as data:
-        data['answer'] = message.text
+        data['answer'] = strip_emojis(message.text)
 
     await AnswerState.next()
-    await message.answer('Убедитесь, что не ошиблись в ответе.',
+    await message.answer('Убедись, что в ответе нет ошибок.',
                          reply_markup=submit_markup())
 
 
@@ -75,20 +77,19 @@ async def process_send_answer(message: Message, state: FSMContext):
 @dp. message_handler(IsAdmin(), text=all_right_message,
                      state=AnswerState.submit)
 async def process_send_answer(message: Message, state: FSMContext):
-    async with state.proxy as data:
+    async with state.proxy() as data:
         answer = data['answer']
+        qid = data['qid']
         cid = data['cid']
-        question = db.fetchone('SELECT question FROM questions'
-                               'WHERE cid = ?',
-                               (cid,))[0]
-        db.query('DELETE FROM questions WHERE cid = ?',
-                 (cid,))
-        text = f'Вопрос: <b>{question}</b>\n\nОтвет: <b>{answer}</b>'
 
+        db.query('UPDATE questions SET answer = ?'
+                 ' WHERE qid = ?',
+                 (answer, qid))
+
+        text = 'На один из ваших вопросов только что дали ответ! ✨'
         await message.answer('Отправлено!',
                              reply_markup=ReplyKeyboardRemove())
-
-        await bot.send_message(cid, text)
+        await bot.send_message(chat_id=cid, text=text)
 
     await state.finish()
 

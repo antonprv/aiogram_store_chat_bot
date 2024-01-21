@@ -22,7 +22,8 @@ class DatabaseManager:
             'CREATE TABLE IF NOT EXISTS products (idx TEXT, title TEXT, '
             'body TEXT, photo BLOB, price INT, tag TEXT)')
         self.query(
-            'CREATE TABLE IF NOT EXISTS orders (cid INT, state TEXT'
+            'CREATE TABLE IF NOT EXISTS orders (cid INT, ord_id TEXT,'
+            ' state TEXT,'
             'usr_name TEXT, usr_address TEXT, products TEXT)')
         self.query(
             'CREATE TABLE IF NOT EXISTS cart (cid INT, idx TEXT, '
@@ -33,7 +34,8 @@ class DatabaseManager:
         # self.query(
             # 'CREATE TABLE IF NOT EXISTS wallet (cid INT, balance REAL)')
         self.query(
-            'CREATE TABLE IF NOT EXISTS questions (cid INT, question TEXT)')
+            'CREATE TABLE IF NOT EXISTS questions (cid INT, qid TEXT,'
+            ' question TEXT, answer TEXT)')
 
     # Вспомогательный метод для упрощения SQL-запросов.
     def query(self, argument: str, values: str = None) -> None:
