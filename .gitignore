@@ -4,3 +4,4 @@ __pycache__/*
 handlers/admin/__pycache__/*
 *.pyc
 data/database.db
+.idea/
