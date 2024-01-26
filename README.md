@@ -17,4 +17,4 @@
 
 Немного скриншотов того, что вас ожидает:
 
-[Imgur](https://i.imgur.com/q6UKi24.png)
+<a href="https://imgur.com/q6UKi24"><img src="https://i.imgur.com/q6UKi24.png" title="source: imgur.com" /></a>
