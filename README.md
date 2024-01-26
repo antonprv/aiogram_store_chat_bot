@@ -11,7 +11,7 @@
 Инструкция по развёртке бота в Telegram:
 1. Создаёте нового бота в https://t.me/BotFather
 2. Даёте боту название и адрес, затем копируете API-ключ, и вставлете в переменную BOT_TOKEN по директории data/config.py
-3. python pip -r requirements.txt
+3. python pip install -r requirements.txt
 4. Бота запускаете через команду python app.py из корня репозитория.
 5. Готово! Вы восхитительны.
 
